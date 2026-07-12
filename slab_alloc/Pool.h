@@ -1,5 +1,7 @@
 #include <cstddef>
 #include <new>
+#include <utility>
+#include <cstring>
 #include <type_traits>
 
 template <typename T, std::size_t Capacity>
@@ -14,11 +16,11 @@ public:
             auto* current = storage_ + i * sizeof(T);
             auto* next = storage_ + (i + 1) * sizeof(T);
 
-            std::memcpy(current, &next, sizeof(next));
+            memcpy(current, &next, sizeof(next));
         }
 
         void* null = nullptr;
-        std::memcpy(storage_ + (Capacity - 1) * sizeof(T), &null, sizeof(null));
+        memcpy(storage_ + (Capacity - 1) * sizeof(T), &null, sizeof(null));
         free_list_head_ = storage_;
     }
 
