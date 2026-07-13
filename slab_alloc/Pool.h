@@ -6,9 +6,7 @@
 
 template <typename T, std::size_t Capacity>
 class ObjectPool {
-    static_assert(sizeof(T) >= sizeof(void*),
-        "TODO: figure out why this assert exists — what would break without it?");
-    // can fit ptr to next free
+    static_assert(sizeof(T) >= sizeof(void*), "need enough room for ptr to next")
 
 public:
     ObjectPool() {
@@ -24,6 +22,9 @@ public:
         free_list_head_ = storage_;
     }
 
+    ObjectPool(const ObjectPool&) = delete;
+    ObjectPool& operator=(const ObjectPool&) = delete;
+
     // Construct a T in a free slot using the given constructor args.
     // Returns nullptr if pool is exhausted.
     template <typename... Args>
@@ -32,28 +33,19 @@ public:
             return nullptr;
 
         void* block = free_list_head_;
-        free_list_head_ = *reinterpret_cast<void**>(block);
-
+        memcpy(&free_list_head_, block, sizeof(void*));
         return new(block) T(std::forward<Args>(args)...);
     }
 
     // Return a slot to the pool. Caller must not use ptr after this.
     void release(T* ptr) {
-        ptr->~T();
+        ptr->~T(); // destructor cleans up innards, delete frees heap memory (this is not)
        
-        *reinterpret_cast<void**>(ptr) = free_list_head_;
+        memcpy(ptr, &free_list_head_, sizeof(void*));
         free_list_head_ = ptr;
     }
 
 private:
-    void advanve();
-    // TODO: pick your storage representation. Options:
-    //   (a) alignas(alignof(T)) unsigned char storage_[Capacity][sizeof(T)];
-    //   (b) alignas(alignof(T)) std::byte storage_[Capacity * sizeof(T)];
-    // pick one, one sentence why it doesn't matter much here / does matter
-
-    // Prefer byte to prevent accidental arithmetic, and adheres to aliasing rules (so uchar)
-    // Also prevents waste
     alignas(alignof(T)) std::byte storage_[Capacity * sizeof(T)];
     void* free_list_head_ = nullptr;
 };
